@@ -22,19 +22,29 @@ import fr.minuskube.inv.content.SlotPos;
 import fr.minuskube.inv.opener.ChestInventoryOpener;
 import fr.minuskube.inv.opener.InventoryOpener;
 import fr.minuskube.inv.opener.SpecialInventoryOpener;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.*;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-
-import java.util.*;
 
 public class InventoryManager {
 
@@ -146,7 +156,8 @@ public class InventoryManager {
             if(inv == null)
                 return;
 
-            if( e.getAction() == InventoryAction.COLLECT_TO_CURSOR || e.getAction() == InventoryAction.NOTHING) {
+
+            if(e.getAction() == InventoryAction.COLLECT_TO_CURSOR || e.getAction() == InventoryAction.NOTHING) {
                 e.setCancelled(true);
                 return;
             }
@@ -159,6 +170,10 @@ public class InventoryManager {
                     return;
 
                 InventoryContents invContents = contents.get(p);
+                if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && invContents.property("allowShift", false)) {
+                    e.setCancelled(true);
+                }
+
                 SlotPos slot = SlotPos.of(row, column);
 
                 if(!invContents.isEditable(slot))
