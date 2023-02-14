@@ -22,13 +22,6 @@ import fr.minuskube.inv.content.SlotPos;
 import fr.minuskube.inv.opener.ChestInventoryOpener;
 import fr.minuskube.inv.opener.InventoryOpener;
 import fr.minuskube.inv.opener.SpecialInventoryOpener;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -41,14 +34,16 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.*;
+
 public class InventoryManager {
 
     private final JavaPlugin plugin;
     private final PluginManager pluginManager;
 
-    private final Map<Player, SmartInventory> inventories;
-    private final Map<Player, InventoryContents> contents;
-    private final Map<Player, BukkitRunnable> updateTasks;
+    private final Map<UUID, SmartInventory> inventories;
+    private final Map<UUID, InventoryContents> contents;
+    private final Map<UUID, BukkitRunnable> updateTasks;
 
     private final List<InventoryOpener> defaultOpeners;
     private final List<InventoryOpener> openers;
@@ -71,8 +66,6 @@ public class InventoryManager {
 
     public void init() {
         pluginManager.registerEvents(new InvListener(), plugin);
-
-//        new InvTask().runTaskTimer(plugin, 1, 1);
     }
 
     public Optional<InventoryOpener> findOpener(InventoryType type) {
@@ -80,7 +73,7 @@ public class InventoryManager {
                 .filter(opener -> opener.supports(type))
                 .findAny();
 
-        if(!opInv.isPresent()) {
+        if (opInv.isEmpty()) {
             opInv = this.defaultOpeners.stream()
                     .filter(opener -> opener.supports(type))
                     .findAny();
@@ -93,193 +86,190 @@ public class InventoryManager {
         this.openers.addAll(Arrays.asList(openers));
     }
 
-    public List<Player> getOpenedPlayers(SmartInventory inv) {
-        List<Player> list = new ArrayList<>();
+    public List<UUID> getOpenedPlayers(SmartInventory inv) {
+        List<UUID> list = new ArrayList<>();
 
-        this.inventories.forEach((player, playerInv) -> {
-            if(inv.equals(playerInv))
-                list.add(player);
+        this.inventories.forEach((uuid, playerInv) -> {
+            if (inv.equals(playerInv)) list.add(uuid);
         });
 
         return list;
     }
 
-    public Optional<SmartInventory> getInventory(Player p) {
-        return Optional.ofNullable(this.inventories.get(p));
+    public Optional<SmartInventory> getInventory(final Player player) {
+        return Optional.ofNullable(this.inventories.get(player.getUniqueId()));
     }
 
-    protected void setInventory(Player p, SmartInventory inv) {
-        if(inv == null)
-            this.inventories.remove(p);
+    protected void setInventory(final Player player, SmartInventory inv) {
+        if (inv == null)
+            this.inventories.remove(player.getUniqueId());
         else
-            this.inventories.put(p, inv);
+            this.inventories.put(player.getUniqueId(), inv);
     }
 
-    public Optional<InventoryContents> getContents(Player p) {
-        return Optional.ofNullable(this.contents.get(p));
+    public Optional<InventoryContents> getContents(final Player player) {
+        return Optional.ofNullable(this.contents.get(player.getUniqueId()));
     }
 
-    protected void setContents(Player p, InventoryContents contents) {
-        if(contents == null)
-            this.contents.remove(p);
+    protected void setContents(final Player player, InventoryContents contents) {
+        if (contents == null)
+            this.contents.remove(player.getUniqueId());
         else
-            this.contents.put(p, contents);
+            this.contents.put(player.getUniqueId(), contents);
     }
 
-    protected void scheduleUpdateTask(Player p, SmartInventory inv) {
-    	PlayerInvTask task = new PlayerInvTask(p, inv.getProvider(), contents.get(p));
-    	task.runTaskTimer(plugin, 1, inv.getUpdateFrequency());
-    	this.updateTasks.put(p, task);
+    protected void scheduleUpdateTask(final Player player, SmartInventory inv) {
+        PlayerInvTask task = new PlayerInvTask(player, inv.getProvider(), contents.get(player.getUniqueId()));
+        task.runTaskTimer(plugin, 1, inv.getUpdateFrequency());
+        this.updateTasks.put(player.getUniqueId(), task);
     }
 
-    protected void cancelUpdateTask(Player p) {
-    	if(updateTasks.containsKey(p)) {
-          int bukkitTaskId = this.updateTasks.get(p).getTaskId();
-          Bukkit.getScheduler().cancelTask(bukkitTaskId);
-          this.updateTasks.remove(p);
-    	}
+    protected void cancelUpdateTask(final Player player) {
+        if (updateTasks.containsKey(player.getUniqueId())) {
+            int bukkitTaskId = this.updateTasks.get(player.getUniqueId()).getTaskId();
+            Bukkit.getScheduler().cancelTask(bukkitTaskId);
+            this.updateTasks.remove(player.getUniqueId());
+        }
     }
 
     @SuppressWarnings("unchecked")
     class InvListener implements Listener {
 
         @EventHandler(priority = EventPriority.LOW)
-        public void onInventoryClick(InventoryClickEvent e) {
-            Player p = (Player) e.getWhoClicked();
-            SmartInventory inv = inventories.get(p);
+        public void onInventoryClick(final InventoryClickEvent event) {
+            final Player player = (Player) event.getWhoClicked();
+            final SmartInventory inv = inventories.get(player.getUniqueId());
+            if (inv == null) return;
 
-            if(inv == null)
-                return;
-
-
-            if(e.getAction() == InventoryAction.COLLECT_TO_CURSOR || e.getAction() == InventoryAction.NOTHING) {
-                e.setCancelled(true);
+            if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR || event.getAction() == InventoryAction.NOTHING) {
+                event.setCancelled(true);
                 return;
             }
 
-            if(e.getClickedInventory() == p.getOpenInventory().getTopInventory()) {
-                int row = e.getSlot() / 9;
-                int column = e.getSlot() % 9;
+            if (event.getClickedInventory() != player.getOpenInventory().getTopInventory()) {
+                return;
+            }
 
-                if(!inv.checkBounds(row, column))
-                    return;
+            final int row = event.getSlot() / 9;
+            final int column = event.getSlot() % 9;
 
-                if (e.getClick() == ClickType.NUMBER_KEY) e.setCancelled(true);
-                InventoryContents invContents = contents.get(p);
-                if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && invContents.property("allowShift", false)) {
-                    e.setCancelled(true);
-                }
+            if (!inv.checkBounds(row, column)) return;
 
-                SlotPos slot = SlotPos.of(row, column);
+            if (event.getClick() == ClickType.NUMBER_KEY) {
+                event.setCancelled(true);
+                return;
+            }
 
-                if(!invContents.isEditable(slot))
-                    e.setCancelled(true);
+            final InventoryContents invContents = contents.get(player.getUniqueId());
+            if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && invContents.property("allowShift", false)) {
+                event.setCancelled(true);
+            }
 
-                inv.getListeners().stream()
-                        .filter(listener -> listener.getType() == InventoryClickEvent.class)
-                        .forEach(listener -> ((InventoryListener<InventoryClickEvent>) listener).accept(e));
+            final SlotPos slot = SlotPos.of(row, column);
+            if (!invContents.isEditable(slot)) {
+                event.setCancelled(true);
+            }
 
-                invContents.get(slot).ifPresent(item -> item.run(new ItemClickData(e, p, e.getCurrentItem(), slot)));
+            inv.getListeners().stream()
+                    .filter(listener -> listener.getType() == InventoryClickEvent.class)
+                    .forEach(listener -> ((InventoryListener<InventoryClickEvent>) listener).accept(event));
 
-                // Don't update if the clicked slot is editable - prevent item glitching
-                if(!invContents.isEditable(slot)) {
-                    p.updateInventory();
-                }
+            invContents.get(slot).ifPresent(item -> item.run(new ItemClickData(event, player, event.getCurrentItem(), slot)));
+
+            // Don't update if the clicked slot is editable - prevent item glitching
+            if (!invContents.isEditable(slot)) {
+                player.updateInventory();
             }
         }
 
         @EventHandler(priority = EventPriority.LOW)
-        public void onInventoryDrag(InventoryDragEvent e) {
-            Player p = (Player) e.getWhoClicked();
+        public void onInventoryDrag(final InventoryDragEvent event) {
+            final Player player = (Player) event.getWhoClicked();
 
-            if(!inventories.containsKey(p))
+            final SmartInventory inv = inventories.get(player.getUniqueId());
+            if (inv == null) {
                 return;
+            }
 
-            SmartInventory inv = inventories.get(p);
-            InventoryContents content = contents.get(p);
-
-            for(int slot : e.getRawSlots()) {
-                SlotPos pos = SlotPos.of(slot/9, slot%9);
-                if(slot >= p.getOpenInventory().getTopInventory().getSize() || content.isEditable(pos))
+            final InventoryContents content = contents.get(player.getUniqueId());
+            for (final int slot : event.getRawSlots()) {
+                final SlotPos pos = SlotPos.of(slot / 9, slot % 9);
+                if (slot >= player.getOpenInventory().getTopInventory().getSize() || content.isEditable(pos))
                     continue;
 
-                e.setCancelled(true);
+                event.setCancelled(true);
                 break;
             }
 
             inv.getListeners().stream()
                     .filter(listener -> listener.getType() == InventoryDragEvent.class)
-                    .forEach(listener -> ((InventoryListener<InventoryDragEvent>) listener).accept(e));
+                    .forEach(listener -> ((InventoryListener<InventoryDragEvent>) listener).accept(event));
         }
 
         @EventHandler(priority = EventPriority.LOW)
-        public void onInventoryOpen(InventoryOpenEvent e) {
-            Player p = (Player) e.getPlayer();
-
-            if(!inventories.containsKey(p))
+        public void onInventoryOpen(final InventoryOpenEvent event) {
+            final Player player = (Player) event.getPlayer();
+            final SmartInventory inv = inventories.get(player.getUniqueId());
+            if (inv == null) {
                 return;
-
-            SmartInventory inv = inventories.get(p);
+            }
 
             inv.getListeners().stream()
                     .filter(listener -> listener.getType() == InventoryOpenEvent.class)
-                    .forEach(listener -> ((InventoryListener<InventoryOpenEvent>) listener).accept(e));
+                    .forEach(listener -> ((InventoryListener<InventoryOpenEvent>) listener).accept(event));
         }
 
         @EventHandler(priority = EventPriority.LOW)
-        public void onInventoryClose(InventoryCloseEvent e) {
-            Player p = (Player) e.getPlayer();
-
-            if(!inventories.containsKey(p))
+        public void onInventoryClose(final InventoryCloseEvent event) {
+            final Player player = (Player) event.getPlayer();
+            final SmartInventory inv = inventories.get(player.getUniqueId());
+            if (inv == null) {
                 return;
+            }
 
-            SmartInventory inv = inventories.get(p);
-
-            try{
+            try {
                 inv.getListeners().stream()
                         .filter(listener -> listener.getType() == InventoryCloseEvent.class)
-                        .forEach(listener -> ((InventoryListener<InventoryCloseEvent>) listener).accept(e));
+                        .forEach(listener -> ((InventoryListener<InventoryCloseEvent>) listener).accept(event));
             } finally {
-                if(inv.isCloseable()) {
-                    e.getInventory().clear();
-                    InventoryManager.this.cancelUpdateTask(p);
+                if (inv.isCloseable()) {
+                    event.getInventory().clear();
+                    InventoryManager.this.cancelUpdateTask(player);
 
-                    inventories.remove(p);
-                    contents.remove(p);
-                }
-                else
-                    Bukkit.getScheduler().runTask(plugin, () -> p.openInventory(e.getInventory()));
+                    inventories.remove(player.getUniqueId());
+                    contents.remove(player.getUniqueId());
+                } else
+                    Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(event.getInventory()));
             }
         }
 
         @EventHandler(priority = EventPriority.LOW)
-        public void onPlayerQuit(PlayerQuitEvent e) {
-            Player p = e.getPlayer();
-
-            if(!inventories.containsKey(p))
+        public void onPlayerQuit(final PlayerQuitEvent event) {
+            final Player player = event.getPlayer();
+            final SmartInventory inv = inventories.get(player.getUniqueId());
+            if (inv == null) {
                 return;
+            }
 
-            SmartInventory inv = inventories.get(p);
-
-            try{
+            try {
                 inv.getListeners().stream()
                         .filter(listener -> listener.getType() == PlayerQuitEvent.class)
-                        .forEach(listener -> ((InventoryListener<PlayerQuitEvent>) listener).accept(e));
+                        .forEach(listener -> ((InventoryListener<PlayerQuitEvent>) listener).accept(event));
             } finally {
-                inventories.remove(p);
-                contents.remove(p);
+                inventories.remove(player.getUniqueId());
+                contents.remove(player.getUniqueId());
             }
         }
 
         @EventHandler(priority = EventPriority.LOW)
-        public void onPluginDisable(PluginDisableEvent e) {
-            new HashMap<>(inventories).forEach((player, inv) -> {
-                try{
+        public void onPluginDisable(final PluginDisableEvent event) {
+            new HashMap<>(inventories).forEach((uuid, inv) -> {
+                try {
                     inv.getListeners().stream()
                             .filter(listener -> listener.getType() == PluginDisableEvent.class)
-                            .forEach(listener -> ((InventoryListener<PluginDisableEvent>) listener).accept(e));
+                            .forEach(listener -> ((InventoryListener<PluginDisableEvent>) listener).accept(event));
                 } finally {
-                    inv.close(player);
+                    inv.close(Bukkit.getPlayer(uuid));
                 }
             });
 
@@ -293,21 +283,21 @@ public class InventoryManager {
 
         @Override
         public void run() {
-            new HashMap<>(inventories).forEach((player, inv) -> inv.getProvider().update(player, contents.get(player)));
+            new HashMap<>(inventories).forEach((uuid, inv) -> inv.getProvider().update(Bukkit.getPlayer(uuid), contents.get(uuid)));
         }
 
     }
 
     class PlayerInvTask extends BukkitRunnable {
 
-        private Player player;
-        private InventoryProvider provider;
-        private InventoryContents contents;
+        private final Player player;
+        private final InventoryProvider provider;
+        private final InventoryContents contents;
 
-        public PlayerInvTask(Player player, InventoryProvider provider, InventoryContents contents) {
-          this.player = Objects.requireNonNull(player);
-          this.provider = Objects.requireNonNull(provider);
-          this.contents = Objects.requireNonNull(contents);
+        public PlayerInvTask(final Player player, final InventoryProvider provider, final InventoryContents contents) {
+            this.player = Objects.requireNonNull(player);
+            this.provider = Objects.requireNonNull(provider);
+            this.contents = Objects.requireNonNull(contents);
         }
 
         @Override
