@@ -125,9 +125,7 @@ public class ClickableItem {
     public void run(ItemClickData data) {
         if ((canSee == null || canSee.test(data.getPlayer())) && (canClick == null || canClick.test(data.getPlayer()))) {
             if(this.legacy) {
-                if(data.getEvent() instanceof InventoryClickEvent) {
-                    InventoryClickEvent event = (InventoryClickEvent) data.getEvent();
-
+                if(data.getEvent() instanceof InventoryClickEvent event) {
                     this.run(event);
                 }
             } else {
