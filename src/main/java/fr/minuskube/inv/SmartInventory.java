@@ -289,7 +289,7 @@ public class SmartInventory {
             if(opener == null)
                 throw new IllegalStateException("Cannot find InventoryOpener for type " + type);
             
-            SlotPos size = opener.defaultSize(type);
+            final SlotPos size = opener.defaultSize(type);
             if(size == null)
                 throw new IllegalStateException(String.format("%s returned null for input InventoryType %s", opener.getClass().getSimpleName(), type));
             
