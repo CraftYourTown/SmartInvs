@@ -31,7 +31,6 @@ public class ClickableItem {
      */
     public static final ClickableItem NONE = empty(null);
 
-
     private final ItemStack item;
     private final Consumer<?> consumer;
     private final boolean legacy;
