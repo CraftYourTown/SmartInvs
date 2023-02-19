@@ -17,6 +17,7 @@ repositories {
 dependencies {
     testImplementation("junit:junit:4.12")
     testImplementation("org.mockito:mockito-core:2.19.0")
+    testImplementation("io.papermc.paper:paper-api:1.19.2-R0.1-SNAPSHOT")
 
     compileOnly("io.papermc.paper:paper-api:1.19.2-R0.1-SNAPSHOT")
 }
