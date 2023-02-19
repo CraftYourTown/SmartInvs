@@ -18,7 +18,7 @@ public class InventoryOpenerTest {
         expectedSizes.put(InventoryType.DISPENSER, SlotPos.of(3, 3));
         expectedSizes.put(InventoryType.DROPPER, SlotPos.of(3, 3));
         expectedSizes.put(InventoryType.ENCHANTING, SlotPos.of(1, 2));
-        expectedSizes.put(InventoryType.BREWING, SlotPos.of(1, 4));       // this line needs to be updated to SlotPos(1, 5) in the future (new brewing stand slot)
+        expectedSizes.put(InventoryType.BREWING, SlotPos.of(1, 5));
         expectedSizes.put(InventoryType.ANVIL, SlotPos.of(1, 3));
         expectedSizes.put(InventoryType.BEACON, SlotPos.of(1, 1));
         expectedSizes.put(InventoryType.HOPPER, SlotPos.of(1, 5));
