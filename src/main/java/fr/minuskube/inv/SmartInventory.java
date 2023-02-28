@@ -147,7 +147,7 @@ public class SmartInventory {
         private Optional<Integer> rows = Optional.empty();
         private Optional<Integer> columns = Optional.empty();
         private boolean closeable = true;
-        private int updateFrequency = 1;
+        private int updateFrequency = 0;
 
         private InventoryManager manager;
         private InventoryProvider provider;
