@@ -22,13 +22,6 @@ import fr.minuskube.inv.content.SlotPos;
 import fr.minuskube.inv.opener.ChestInventoryOpener;
 import fr.minuskube.inv.opener.InventoryOpener;
 import fr.minuskube.inv.opener.SpecialInventoryOpener;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -40,6 +33,8 @@ import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+
+import java.util.*;
 
 public class InventoryManager {
 
@@ -71,7 +66,6 @@ public class InventoryManager {
 
     public void init() {
         pluginManager.registerEvents(new InvListener(), plugin);
-        //new InvTask().runTaskTimer(plugin, 1, 1);
     }
 
     public Optional<InventoryOpener> findOpener(InventoryType type) {
@@ -79,7 +73,7 @@ public class InventoryManager {
                 .filter(opener -> opener.supports(type))
                 .findAny();
 
-        if(!opInv.isPresent()) {
+        if (!opInv.isPresent()) {
             opInv = this.defaultOpeners.stream()
                     .filter(opener -> opener.supports(type))
                     .findAny();
@@ -96,7 +90,7 @@ public class InventoryManager {
         List<Player> list = new ArrayList<>();
 
         this.inventories.forEach((player, playerInv) -> {
-            if(inv.equals(playerInv))
+            if (inv.equals(playerInv))
                 list.add(player);
         });
 
@@ -107,8 +101,15 @@ public class InventoryManager {
         return Optional.ofNullable(this.inventories.get(p));
     }
 
+    public boolean removeCachedForPlayer(final Player viewer) {
+        final boolean contents = this.contents.remove(viewer) != null;
+        final boolean inventory = this.inventories.remove(viewer) != null;
+
+        return contents && inventory;
+    }
+
     protected void setInventory(Player p, SmartInventory inv) {
-        if(inv == null)
+        if (inv == null)
             this.inventories.remove(p);
         else
             this.inventories.put(p, inv);
@@ -119,7 +120,7 @@ public class InventoryManager {
     }
 
     protected void setContents(Player p, InventoryContents contents) {
-        if(contents == null)
+        if (contents == null)
             this.contents.remove(p);
         else
             this.contents.put(p, contents);
@@ -148,20 +149,20 @@ public class InventoryManager {
             Player p = (Player) e.getWhoClicked();
             SmartInventory inv = inventories.get(p);
 
-            if(inv == null)
+            if (inv == null)
                 return;
 
 
-            if(e.getAction() == InventoryAction.COLLECT_TO_CURSOR || e.getAction() == InventoryAction.NOTHING) {
+            if (e.getAction() == InventoryAction.COLLECT_TO_CURSOR || e.getAction() == InventoryAction.NOTHING) {
                 e.setCancelled(true);
                 return;
             }
 
-            if(e.getClickedInventory() == p.getOpenInventory().getTopInventory()) {
+            if (e.getClickedInventory() == p.getOpenInventory().getTopInventory()) {
                 int row = e.getSlot() / 9;
                 int column = e.getSlot() % 9;
 
-                if(!inv.checkBounds(row, column))
+                if (!inv.checkBounds(row, column))
                     return;
 
                 if (e.getClick() == ClickType.NUMBER_KEY) e.setCancelled(true);
@@ -172,7 +173,7 @@ public class InventoryManager {
 
                 SlotPos slot = SlotPos.of(row, column);
 
-                if(!invContents.isEditable(slot))
+                if (!invContents.isEditable(slot))
                     e.setCancelled(true);
 
                 inv.getListeners().stream()
@@ -182,7 +183,7 @@ public class InventoryManager {
                 invContents.get(slot).ifPresent(item -> item.run(new ItemClickData(e, p, e.getCurrentItem(), slot)));
 
                 // Don't update if the clicked slot is editable - prevent item glitching
-                if(!invContents.isEditable(slot)) {
+                if (!invContents.isEditable(slot)) {
                     p.updateInventory();
                 }
             }
@@ -196,9 +197,9 @@ public class InventoryManager {
             if (inv == null) return;
             InventoryContents content = contents.get(p);
 
-            for(int slot : e.getRawSlots()) {
-                SlotPos pos = SlotPos.of(slot/9, slot%9);
-                if(slot >= p.getOpenInventory().getTopInventory().getSize() || content.isEditable(pos))
+            for (int slot : e.getRawSlots()) {
+                SlotPos pos = SlotPos.of(slot / 9, slot % 9);
+                if (slot >= p.getOpenInventory().getTopInventory().getSize() || content.isEditable(pos))
                     continue;
 
                 e.setCancelled(true);
@@ -229,19 +230,18 @@ public class InventoryManager {
             SmartInventory inv = inventories.get(p);
             if (inv == null) return;
 
-            try{
+            try {
                 inv.getListeners().stream()
                         .filter(listener -> listener.getType() == InventoryCloseEvent.class)
                         .forEach(listener -> ((InventoryListener<InventoryCloseEvent>) listener).accept(e));
             } finally {
-                if(inv.isCloseable()) {
+                if (inv.isCloseable()) {
                     e.getInventory().clear();
                     InventoryManager.this.cancelUpdateTask(p);
 
                     inventories.remove(p);
                     contents.remove(p);
-                }
-                else
+                } else
                     Bukkit.getScheduler().runTask(plugin, () -> p.openInventory(e.getInventory()));
             }
         }
@@ -253,7 +253,7 @@ public class InventoryManager {
             SmartInventory inv = inventories.get(p);
             if (inv == null) return;
 
-            try{
+            try {
                 inv.getListeners().stream()
                         .filter(listener -> listener.getType() == PlayerQuitEvent.class)
                         .forEach(listener -> ((InventoryListener<PlayerQuitEvent>) listener).accept(e));
@@ -266,7 +266,7 @@ public class InventoryManager {
         @EventHandler(priority = EventPriority.LOW)
         public void onPluginDisable(PluginDisableEvent e) {
             new HashMap<>(inventories).forEach((player, inv) -> {
-                try{
+                try {
                     inv.getListeners().stream()
                             .filter(listener -> listener.getType() == PluginDisableEvent.class)
                             .forEach(listener -> ((InventoryListener<PluginDisableEvent>) listener).accept(e));
@@ -281,25 +281,16 @@ public class InventoryManager {
 
     }
 
-    class InvTask extends BukkitRunnable {
+    static class PlayerInvTask extends BukkitRunnable {
 
-        @Override
-        public void run() {
-            new HashMap<>(inventories).forEach((player, inv) -> inv.getProvider().update(player, contents.get(player)));
-        }
-
-    }
-
-    class PlayerInvTask extends BukkitRunnable {
-
-        private Player player;
-        private InventoryProvider provider;
-        private InventoryContents contents;
+        private final Player player;
+        private final InventoryProvider provider;
+        private final InventoryContents contents;
 
         public PlayerInvTask(Player player, InventoryProvider provider, InventoryContents contents) {
-          this.player = Objects.requireNonNull(player);
-          this.provider = Objects.requireNonNull(provider);
-          this.contents = Objects.requireNonNull(contents);
+            this.player = Objects.requireNonNull(player);
+            this.provider = Objects.requireNonNull(provider);
+            this.contents = Objects.requireNonNull(contents);
         }
 
         @Override
