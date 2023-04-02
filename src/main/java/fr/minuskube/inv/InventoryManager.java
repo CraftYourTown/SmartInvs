@@ -162,30 +162,30 @@ public class InventoryManager {
                 }
             }
 
-            if (event.getClickedInventory() == player.getOpenInventory().getTopInventory()) {
-                final ClickType clickType = event.getClick();
+            final ClickType clickType = event.getClick();
 
-                final int row = event.getSlot() / 9;
-                final int column = event.getSlot() % 9;
+            final int row = event.getSlot() / 9;
+            final int column = event.getSlot() % 9;
 
-                if (!inventory.checkBounds(row, column)) {
-                    return;
+            if (!inventory.checkBounds(row, column)) {
+                return;
+            }
+
+            final InventoryContents invContents = contents.get(player);
+            final SlotPos slot = SlotPos.of(row, column);
+            if (!invContents.isEditable(slot)) {
+                event.setCancelled(true);
+            }
+
+            if (inventoryAction == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+                if (!invContents.property("allowShift", false)) {
+                    event.setCancelled(true);
                 }
+            }
 
+            if (event.getClickedInventory() == player.getOpenInventory().getTopInventory()) {
                 if (clickType == ClickType.NUMBER_KEY) {
                     event.setCancelled(true);
-                }
-
-                final InventoryContents invContents = contents.get(player);
-                final SlotPos slot = SlotPos.of(row, column);
-                if (!invContents.isEditable(slot)) {
-                    event.setCancelled(true);
-                }
-
-                if (inventoryAction == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
-                    if (!invContents.property("allowShift", false)) {
-                        event.setCancelled(true);
-                    }
                 }
 
                 inventory.getListeners().stream()
