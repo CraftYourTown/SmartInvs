@@ -33,8 +33,13 @@ public class SmartInvsPlugin extends JavaPlugin {
         deleteStaticReferences();
     }
 
-    public static InventoryManager manager() { return invManager; }
-    public static JavaPlugin instance() { return instance; }
+    public static InventoryManager manager() {
+        return invManager;
+    }
+
+    public static JavaPlugin instance() {
+        return instance;
+    }
 
     public static void setPlugin(JavaPlugin javaPlugin) {
         instance = javaPlugin;
@@ -46,4 +51,5 @@ public class SmartInvsPlugin extends JavaPlugin {
         instance = null;
         invManager = null;
     }
+
 }

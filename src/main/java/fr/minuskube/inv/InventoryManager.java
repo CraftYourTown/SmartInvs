@@ -68,6 +68,7 @@ public class InventoryManager {
         pluginManager.registerEvents(new InvListener(), plugin);
     }
 
+
     public Optional<InventoryOpener> findOpener(InventoryType type) {
         Optional<InventoryOpener> opInv = this.openers.stream()
                 .filter(opener -> opener.supports(type))
@@ -145,46 +146,57 @@ public class InventoryManager {
     class InvListener implements Listener {
 
         @EventHandler(priority = EventPriority.LOW)
-        public void onInventoryClick(InventoryClickEvent e) {
-            Player p = (Player) e.getWhoClicked();
-            SmartInventory inv = inventories.get(p);
+        public void onInventoryClick(InventoryClickEvent event) {
+            final Player player = (Player) event.getWhoClicked();
+            final SmartInventory inventory = inventories.get(player);
 
-            if (inv == null)
-                return;
-
-
-            if (e.getAction() == InventoryAction.COLLECT_TO_CURSOR || e.getAction() == InventoryAction.NOTHING) {
-                e.setCancelled(true);
+            if (inventory == null) {
                 return;
             }
 
-            if (e.getClickedInventory() == p.getOpenInventory().getTopInventory()) {
-                int row = e.getSlot() / 9;
-                int column = e.getSlot() % 9;
-
-                if (!inv.checkBounds(row, column))
+            final InventoryAction inventoryAction = event.getAction();
+            switch (inventoryAction) {
+                case NOTHING, COLLECT_TO_CURSOR -> {
+                    event.setCancelled(true);
                     return;
+                }
+            }
 
-                if (e.getClick() == ClickType.NUMBER_KEY) e.setCancelled(true);
-                InventoryContents invContents = contents.get(p);
-                if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && invContents.property("allowShift", false)) {
-                    e.setCancelled(true);
+            if (event.getClickedInventory() == player.getOpenInventory().getTopInventory()) {
+                final ClickType clickType = event.getClick();
+
+                final int row = event.getSlot() / 9;
+                final int column = event.getSlot() % 9;
+
+                if (!inventory.checkBounds(row, column)) {
+                    return;
                 }
 
-                SlotPos slot = SlotPos.of(row, column);
+                if (clickType == ClickType.NUMBER_KEY) {
+                    event.setCancelled(true);
+                }
 
-                if (!invContents.isEditable(slot))
-                    e.setCancelled(true);
+                final InventoryContents invContents = contents.get(player);
+                final SlotPos slot = SlotPos.of(row, column);
+                if (!invContents.isEditable(slot)) {
+                    event.setCancelled(true);
+                }
 
-                inv.getListeners().stream()
+                if (inventoryAction == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+                    if (!invContents.property("allowShift", false)) {
+                        event.setCancelled(true);
+                    }
+                }
+
+                inventory.getListeners().stream()
                         .filter(listener -> listener.getType() == InventoryClickEvent.class)
-                        .forEach(listener -> ((InventoryListener<InventoryClickEvent>) listener).accept(e));
+                        .forEach(listener -> ((InventoryListener<InventoryClickEvent>) listener).accept(event));
 
-                invContents.get(slot).ifPresent(item -> item.run(new ItemClickData(e, p, e.getCurrentItem(), slot)));
+                invContents.get(slot).ifPresent(item -> item.run(new ItemClickData(event, player, event.getCurrentItem(), slot)));
 
                 // Don't update if the clicked slot is editable - prevent item glitching
                 if (!invContents.isEditable(slot)) {
-                    p.updateInventory();
+                    player.updateInventory();
                 }
             }
         }

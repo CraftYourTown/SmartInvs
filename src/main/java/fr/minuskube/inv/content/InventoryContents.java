@@ -582,6 +582,8 @@ public interface InventoryContents {
      */
     boolean isEditable(SlotPos slot);
 
+    Map<String, Object> getProperties();
+
     class Impl implements InventoryContents{
 
         private final SmartInventory inv;
@@ -599,6 +601,11 @@ public interface InventoryContents {
             this.inv = inv;
             this.player = player;
             this.contents = new ClickableItem[inv.getRows()][inv.getColumns()];
+        }
+
+        @Override
+        public Map<String, Object> getProperties() {
+            return this.properties;
         }
 
         @Override
