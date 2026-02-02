@@ -49,22 +49,3 @@ bukkit {
     version = indraGit.commit()?.name?.take(7)
     apiVersion = "1.21"
 }
-
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-
-            repositories {
-                maven {
-                    credentials {
-                        username = System.getProperty("MANGO_STUDIOS_REPO_USERNAME")
-                        password = System.getProperty("MANGO_STUDIOS_REPO_PASSWORD")
-                    }
-
-                    url = uri("https://repo.mangostudios.uk/repository/internal/")
-                }
-            }
-        }
-    }
-}
